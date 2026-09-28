@@ -29,6 +29,28 @@ def main(page: ft.Page):
             is_running = False
             min_input.disabled = False
             sec_input.disabled = False
+
+            #ーーー画面の点滅（フラッシュ演出）ーーー
+            original_bgcolor = page.bgcolor #元の背景色を記憶しておく
+
+            for _ in range(3):
+                 page.bgcolor = ft.Colors.RED_400
+                 page.update()
+                 await asyncio.sleep(0.3)
+
+                 page.bgcolor = original_bgcolor
+                 page.update()
+                 await asyncio.sleep(0.3)
+
+            #ーーーポップアップ（ダイアログ）の表示ーーー
+            dlg = ft.AlertDialog(
+                 title=ft.Text("時間になりました"),
+                 content=ft.Text("お疲れさまでした")
+            ) 
+            #ダイアログを画面に開く
+            page.overlay.append(dlg)
+            dlg.open = True
+
             page.update()
 
     async def on_start_click(e):
@@ -90,7 +112,7 @@ def main(page: ft.Page):
     #2-2.時間設定フォーム（TextFieldクラスとRowクラス）
     timer_title = ft.Text("タイマーセット", size = 18 , weight=ft.FontWeight.BOLD)
 
-    min_input = ft.TextField(value = "25", label = "分", width = 100, text_align=ft.TextAlign.CENTER)
+    min_input = ft.TextField(value = "00", label = "分", width = 100, text_align=ft.TextAlign.CENTER)
     sec_input = ft.TextField(value = "00", label = "秒", width = 100, text_align=ft.TextAlign.CENTER)
 
     time_setting_row = ft.Row(
