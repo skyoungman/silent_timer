@@ -24,19 +24,19 @@ def main(page: ft.Page):
     hour_picker = ft.CupertinoPicker(
          selected_index = 0,
          item_extent = 32,
-         controls = [ft.Text(f"{i:02}") for i in range (24)]
+         controls = [ft.Text(f"{i:02}", size = 20) for i in range (24)]
     )
 
     min_picker = ft.CupertinoPicker(
          selected_index = 0,
          item_extent = 32,
-         controls = [ft.Text(f"{i:02}") for i in range (60)]
+         controls = [ft.Text(f"{i:02}", size = 20) for i in range (60)]
     )
 
     sec_picker = ft.CupertinoPicker(
          selected_index = 0,
          item_extent = 32,
-         controls = [ft.Text(f"{i:02}") for i in range (60)]
+         controls = [ft.Text(f"{i:02}", size = 20) for i in range (60)]
     )
 
     picker_row = ft.Row(
