@@ -13,6 +13,50 @@ def main(page: ft.Page):
     page.window.height = 700
     page.padding = 20 #画面端からの余白
 
+    #ーーー２．UIコントロールのインスタンス化　ーーー
+    
+    #2-1.タイトル（Textクラス）
+    title = ft.Text("無音タイマー", size = 18, weight=ft.FontWeight.NORMAL,color = ft.Colors.GREY_500,font_family="MS Mincho")
+
+    #2-2.時間設定フォーム（TextFieldクラスとRowクラス）
+    timer_title = ft.Text("タイマーセット", size = 18 , weight=ft.FontWeight.BOLD)
+
+    hour_picker = ft.CupertinoPicker(
+         selected_index = 0,
+         item_extent = 32,
+         controls = [ft.Text(f"{i:02}") for i in range (24)]
+    )
+
+    min_picker = ft.CupertinoPicker(
+         selected_index = 0,
+         item_extent = 32,
+         controls = [ft.Text(f"{i:02}") for i in range (60)]
+    )
+
+    sec_picker = ft.CupertinoPicker(
+         selected_index = 0,
+         item_extent = 32,
+         controls = [ft.Text(f"{i:02}") for i in range (60)]
+    )
+
+    picker_row = ft.Row(
+         controls = [
+              ft.Container(content = hour_picker, width = 80, height = 150),
+              ft.Text(":", size = 30, weight = ft.FontWeight.BOLD),
+              ft.Container(content = min_picker, width = 80, height = 150),
+              ft.Text(":", size = 30, weight = ft.FontWeight.BOLD),
+              ft.Container(content = sec_picker, width = 80, height = 150),
+         ],
+         alignment = ft.MainAxisAlignment.CENTER
+    )
+
+    countdown_display = ft.Text(
+         value = "00:00:00",
+         size = 50,
+         weight = ft.FontWeight.BOLD,
+         visible = False
+    )
+
     #ボタンを押したときに実行される関数
     async def countdown():
         nonlocal is_running, remaining_time
@@ -21,14 +65,19 @@ def main(page: ft.Page):
             if not is_running:
                 break
             remaining_time -= 1
-            min_input.value = f"{remaining_time // 60:02}"
-            sec_input.value = f"{remaining_time % 60:02}"
+
+            h = remaining_time // 3600
+            m = (remaining_time % 3600) // 60
+            s = remaining_time % 60
+            countdown_display.value = f"{h:02}:{m:02}:{s:02}"
             page.update()
 
         if remaining_time <= 0:
             is_running = False
-            min_input.disabled = False
-            sec_input.disabled = False
+            #見た目をもとに戻す（ピッカー復活）
+            picker_row.visible = True
+            countdown_display.visible = False
+        
 
             #ーーー画面の点滅（フラッシュ演出）ーーー
             original_bgcolor = page.bgcolor #元の背景色を記憶しておく
@@ -57,68 +106,66 @@ def main(page: ft.Page):
         nonlocal is_running, remaining_time
         if is_running:
             return
-        try:
-            m = int(min_input.value) if min_input.value else 0
-            s = int(sec_input.value) if sec_input.value else 0
-            remaining_time = m * 60 + s
-        except ValueError:
-            return
 
-        if remaining_time > 0:
-            is_running = True
-            min_input.disabled = True
-            sec_input.disabled = True
-            page.update()
-            await countdown()
+        #ピッカーで選べばれている数字を取得
+        h = hour_picker.selected_index
+        m = min_picker.selected_index
+        s = sec_picker.selected_index
+
+        #時、分、秒をすべて秒に変換して合計する
+        remaining_time = h * 3600 + m * 60 + s
+
+        #０秒スタートの帽子
+        if remaining_time <= 0:
+             return
+
+        is_running = True
+
+        picker_row.visible = False
+        countdown_display.visible = True
+
+        countdown_display.value = f"{h:02}:{m:02}:{s:02}"
+        page.update()
+
+        page.run_task(countdown)
 
     def on_cancel_click(e):
         nonlocal is_running
         is_running = False
-        min_input.disabled = False
-        sec_input.disabled = False
+        picker_row.visible = True
+        countdown_display.visible = False
         page.update()
+
+    #テンプレートボタンによるピッカーの表示更新関数
+    def set_picker_time(h, m ,s):
+        nonlocal hour_picker, min_picker, sec_picker
+
+        #ピッカーの作り直し
+        hour_picker = ft.CupertinoPicker(selected_index = h, item_extent = 32, controls = [ft.Text(f"{i:02}") for i in range(24)])
+        min_picker = ft.CupertinoPicker(selected_index = m, item_extent = 32, controls = [ft.Text(f"{i:02}") for i in range(60)])
+        sec_picker = ft.CupertinoPicker(selected_index = s, item_extent = 32, controls = [ft.Text(f"{i:02}") for i in range(60)])
+
+        #画面上の古いピッカーを、新しく作ったピッカーに差し替える
+        picker_row.controls[0].content = hour_picker
+        picker_row.controls[2].content = min_picker
+        picker_row.controls[4].content = sec_picker
+
 
     def set_template_5(e):
         if not is_running:
-            min_input.value = "05"
-            sec_input.value = "00"
-            page.update()
+            set_picker_time(0,5,0)
 
     def set_template_25(e):
-            if not is_running:
-                min_input.value = "25"
-                sec_input.value = "00"
-                page.update()
+        if not is_running:
+            set_picker_time(0,25,0)
 
     def set_template_60(e):
-            if not is_running:
-                min_input.value = "60"
-                sec_input.value = "00"
-                page.update()
+        if not is_running:
+            set_picker_time(1,0,0)
 
     def set_template_90(e):
-            if not is_running:
-                min_input.value = "90"
-                sec_input.value = "00"
-                page.update()
-
-    
-
-    #ーーー２．UIコントロールのインスタンス化　ーーー
-    
-    #2-1.タイトル（Textクラス）
-    title = ft.Text("無音タイマー", size = 18, weight=ft.FontWeight.NORMAL,color = ft.Colors.GREY_500,font_family="MS Mincho")
-
-    #2-2.時間設定フォーム（TextFieldクラスとRowクラス）
-    timer_title = ft.Text("タイマーセット", size = 18 , weight=ft.FontWeight.BOLD)
-
-    min_input = ft.TextField(value = "00", label = "分", width = 100, text_align=ft.TextAlign.CENTER)
-    sec_input = ft.TextField(value = "00", label = "秒", width = 100, text_align=ft.TextAlign.CENTER)
-
-    time_setting_row = ft.Row(
-        controls = [min_input, ft.Text("分", size = 20), sec_input, ft.Text("秒", size = 20)],
-        alignment = ft.MainAxisAlignment.CENTER
-    )
+        if not is_running:
+            set_picker_time(1,30,0)
 
     #2-3.アクションボタン（BottonクラスとRowクラス）
     #背景が透明のボタン
@@ -157,16 +204,14 @@ def main(page: ft.Page):
             controls = [
                 ft.Row(controls=[title], alignment = ft.MainAxisAlignment.CENTER),
                 ft.Divider(height = 5), #区切り線
-                ft.Container(height=25),
                 timer_title,
-                ft.Container(height=10),
-                time_setting_row,
+                picker_row,
+                countdown_display,
                 ft.Container(height=10), #縦方向の間隔調整用コンテナ
                 action_btn_row,
                 ft.Container(height=5),
-                ft.Divider(height = 30),
+                ft.Divider(height = 10),
                 template_title,
-                ft.Container(height=5),
                 preset_row1,
                 preset_row2,
             ],
