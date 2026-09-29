@@ -13,6 +13,10 @@ def main(page: ft.Page):
     page.window.height = 700
     page.padding = 20 #画面端からの余白
 
+    #ーーーバイブレーション機能の準備ーーー
+    #hf = ft.HapticFeedback()
+    #page.overlay.append(hf)
+
     #ーーー２．UIコントロールのインスタンス化　ーーー
     
     #2-1.タイトル（Textクラス）
@@ -77,19 +81,27 @@ def main(page: ft.Page):
             #見た目をもとに戻す（ピッカー復活）
             picker_row.visible = True
             countdown_display.visible = False
-        
 
             #ーーー画面の点滅（フラッシュ演出）ーーー
             original_bgcolor = page.bgcolor #元の背景色を記憶しておく
 
             for _ in range(3):
-                 page.bgcolor = ft.Colors.RED_400
-                 page.update()
-                 await asyncio.sleep(0.3)
+                if flash_switch.value == True:
+                    page.bgcolor = ft.Colors.RED_400
 
-                 page.bgcolor = original_bgcolor
-                 page.update()
-                 await asyncio.sleep(0.3)
+                """
+                if vibe_switch.value == True:
+                    hf.heavy_impact()
+                """
+
+                page.update()
+                await asyncio.sleep(0.3)
+
+                if flash_switch.value == True:
+                    page.bgcolor = original_bgcolor
+
+                page.update()
+                await asyncio.sleep(0.3)
 
             #ーーーポップアップ（ダイアログ）の表示ーーー
             dlg = ft.AlertDialog(
@@ -189,6 +201,14 @@ def main(page: ft.Page):
     preset_row1 = ft.Row(controls=[btn_5min, btn_25min], alignment=ft.MainAxisAlignment.CENTER)
     preset_row2 = ft.Row(controls=[btn_60min, btn_90min], alignment=ft.MainAxisAlignment.CENTER)
 
+    #ON/OFFスイッチの追加
+    flash_switch = ft.Switch(label = "画面点滅", value = True)
+    vibe_switch = ft.Switch(label = "バイブ", value = True)
+
+    switch_row = ft.Row(
+        controls = [flash_switch, vibe_switch],
+        alignment = ft.MainAxisAlignment.CENTER
+    )
     #2-5.ナビゲーションバー（NavigationBarクラス）
     page.navigation_bar = ft.NavigationBar(
         destinations=[
@@ -199,8 +219,7 @@ def main(page: ft.Page):
     )
 
     ##ーーー３．コントロールツリーへの追加（画面描画）　ーーー
-    page.add(
-        ft.Column(
+    main_view = ft.ListView(
             controls = [
                 ft.Row(controls=[title], alignment = ft.MainAxisAlignment.CENTER),
                 ft.Divider(height = 5), #区切り線
@@ -214,9 +233,15 @@ def main(page: ft.Page):
                 template_title,
                 preset_row1,
                 preset_row2,
+                ft.Container(height=10),
+                ft.Divider(height = 10),
+                switch_row,
             ],
-            #spacing = 15 #各要素間の垂直方向の余白
-        )
+            #各要素間の垂直方向の余白
+            spacing = 15,
+            expand = True,
     )
+    page.add(main_view)
 
+    
 ft.run(main)
