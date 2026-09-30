@@ -16,8 +16,10 @@ def main(page: ft.Page):
     page.padding = 20 #画面端からの余白
 
     #ーーーバイブレーション機能の準備ーーー
-    #hf = ft.HapticFeedback()
-    #page.overlay.append(hf)
+    '''
+    hf = ft.HapticFeedback()
+    page.overlay.append(hf)
+    '''
 
     #ーーー２．UIコントロールのインスタンス化　ーーー
     
@@ -101,10 +103,11 @@ def main(page: ft.Page):
                 if flash_switch.value == True:
                     page.bgcolor = ft.Colors.RED_400
 
-                """
+                '''
                 if vibe_switch.value == True:
                     hf.heavy_impact()
-                """
+                '''
+                
 
                 page.update()
                 await asyncio.sleep(0.3)
@@ -213,12 +216,22 @@ def main(page: ft.Page):
             set_picker_time(1,30,0)
 
     #2-3.アクションボタン（BottonクラスとRowクラス）
-    #背景が透明のボタン
+    #背景が透明のボタン（キャンセルボタン）
     cancel_btn = ft.OutlinedButton("キャンセル", width = 120, height = 60, on_click = on_cancel_click)
 
-    #背景が塗りつぶされたボタン
+    #背景が塗りつぶされたボタン（開始ボタン）
     start_text = ft.Text("開始", size = 14, weight = ft.FontWeight.BOLD)
-    start_btn = ft.FilledButton(content = start_text, width = 140, height = 60, on_click=on_start_click)
+
+    raw_start_btn = ft.FilledButton(content = start_text, width = 140, height = 60, on_click=on_start_click)
+    start_btn = ft.Container(
+        content = raw_start_btn,
+        shadow = ft.BoxShadow(
+            blur_radius = 12,
+            color = ft.Colors.with_opacity(0.25, ft.Colors.WHITE),
+            offset = ft.Offset(0,2),
+        ),
+        border_radius = 30
+    )
 
     action_btn_row = ft.Row(
         controls=[cancel_btn, start_btn],
@@ -242,6 +255,7 @@ def main(page: ft.Page):
     preset_row2 = ft.Row(controls=[btn_60min, btn_90min], alignment=ft.MainAxisAlignment.CENTER)
 
     #ON/OFFスイッチの追加
+    custom_title = ft.Text("設定", size = 18 , weight=ft.FontWeight.BOLD)
     flash_switch = ft.Switch(label = "画面点滅", value = True)
     vibe_switch = ft.Switch(label = "バイブ", value = True)
 
@@ -269,19 +283,22 @@ def main(page: ft.Page):
                 timer_title,
                 picker_row,
                 countdown_display,
-                ft.Container(height=10), #縦方向の間隔調整用コンテナ
+                ft.Container(height = 10), #縦方向の間隔調整用コンテナ
                 action_btn_row,
-                ft.Container(height=5),
+                ft.Container(height = 5),
                 ft.Divider(height = 10),
                 template_title,
+                ft.Container(height = 5),
                 preset_row1,
                 preset_row2,
-                ft.Container(height=10),
-                ft.Divider(height = 10),
+                ft.Container(height = 5),
+                ft.Divider(height = 1),
+                ft.Container(height = 5),
+                custom_title,
                 switch_row,
             ],
             #各要素間の垂直方向の余白
-            spacing = 15,
+            spacing = 5,
             expand = True,
     )
     page.add(main_view)
