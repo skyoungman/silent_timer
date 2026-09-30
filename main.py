@@ -249,6 +249,8 @@ def main(page: ft.Page):
         controls = [flash_switch, vibe_switch],
         alignment = ft.MainAxisAlignment.CENTER
     )
+
+    """
     #2-5.ナビゲーションバー（NavigationBarクラス）
     page.navigation_bar = ft.NavigationBar(
         destinations=[
@@ -257,6 +259,7 @@ def main(page: ft.Page):
         ],
         selected_index = 0
     )
+    """
 
     ##ーーー３．コントロールツリーへの追加（画面描画）　ーーー
     main_view = ft.ListView(
