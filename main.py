@@ -4,6 +4,8 @@ import asyncio
 def main(page: ft.Page):
     #タイマーが動いているか
     is_running = False
+    #一時停止中かどうか
+    is_paused = False
     #残り何秒か
     remaining_time = 0
 
@@ -65,6 +67,12 @@ def main(page: ft.Page):
     async def countdown():
         nonlocal is_running, remaining_time
         while is_running and remaining_time > 0:
+
+            #一時停止中なら１秒経過をスキップする
+            if is_paused == True:
+                await asyncio.sleep(0.1)
+                continue
+
             await asyncio.sleep(1)
             if not is_running:
                 break
@@ -78,6 +86,10 @@ def main(page: ft.Page):
 
         if remaining_time <= 0:
             is_running = False
+
+            start_text.value= "開始"
+            page.update()
+
             #見た目をもとに戻す（ピッカー復活）
             picker_row.visible = True
             countdown_display.visible = False
@@ -115,10 +127,22 @@ def main(page: ft.Page):
             page.update()
 
     async def on_start_click(e):
-        nonlocal is_running, remaining_time
-        if is_running:
+        nonlocal is_running, remaining_time, is_paused
+
+        #稼働中に一時停止中を押したとき
+        if is_running == True and is_paused == False:
+            is_paused = True
+            start_text.value = "再開"
+            page.update()
             return
 
+        #一時停止中に再開を押したとき
+        elif is_running == True and is_paused == True:
+            is_paused = False
+            start_text.value = "一時停止"
+            page.update()
+            return
+        
         #ピッカーで選べばれている数字を取得
         h = hour_picker.selected_index
         m = min_picker.selected_index
@@ -127,11 +151,14 @@ def main(page: ft.Page):
         #時、分、秒をすべて秒に変換して合計する
         remaining_time = h * 3600 + m * 60 + s
 
-        #０秒スタートの帽子
+        #０秒スタートの防止
         if remaining_time <= 0:
              return
 
         is_running = True
+        is_paused = False
+
+        start_text.value = "一時停止"
 
         picker_row.visible = False
         countdown_display.visible = True
@@ -142,8 +169,12 @@ def main(page: ft.Page):
         page.run_task(countdown)
 
     def on_cancel_click(e):
-        nonlocal is_running
+        nonlocal is_running, is_paused
         is_running = False
+        is_paused = False
+
+        start_text.value = "開始"
+
         picker_row.visible = True
         countdown_display.visible = False
         page.update()
@@ -161,6 +192,8 @@ def main(page: ft.Page):
         picker_row.controls[0].content = hour_picker
         picker_row.controls[2].content = min_picker
         picker_row.controls[4].content = sec_picker
+
+        page.update()
 
 
     def set_template_5(e):
@@ -182,13 +215,20 @@ def main(page: ft.Page):
     #2-3.アクションボタン（BottonクラスとRowクラス）
     #背景が透明のボタン
     cancel_btn = ft.OutlinedButton("キャンセル", width = 120, height = 60, on_click = on_cancel_click)
+
     #背景が塗りつぶされたボタン
-    start_btn = ft.FilledButton("開始", width = 140, height = 60, on_click=on_start_click)
+    start_text = ft.Text("開始", size = 14, weight = ft.FontWeight.BOLD)
+    start_btn = ft.FilledButton(content = start_text, width = 140, height = 60, on_click=on_start_click)
 
     action_btn_row = ft.Row(
         controls=[cancel_btn, start_btn],
         alignment=ft.MainAxisAlignment.CENTER
     )
+
+
+
+
+
 
     #2-4.テンプレート（プリセット）ボタン
     template_title = ft.Text("テンプレート", size = 18 , weight=ft.FontWeight.BOLD)
