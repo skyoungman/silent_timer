@@ -23,6 +23,7 @@ class SilentTimerApp extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
+      debugShowCheckedModeBanner: false,
       title: 'Silent Timer', // アプリの内部名称
       theme: ThemeData(
         useMaterial3: true, // 最新のマテリアルデザイン3を有効化
@@ -78,6 +79,18 @@ class _TimerHomePageState extends State<TimerHomePage> {
     secController = FixedExtentScrollController(initialItem: 0);
   }
 
+  void resetPickerTime() {
+    setState(() {
+      selectedHour = 0;
+      selectedMin = 0;
+      selectedSec = 0;
+    });
+    // ドラムロールの表示位置を 0 に戻す
+    if (hourController.hasClients) hourController.jumpToItem(0);
+    if (minController.hasClients) minController.jumpToItem(0);
+    if (secController.hasClients) secController.jumpToItem(0);
+  }
+
   // ---【ロジック 1：開始・一時停止・再開ボタンを押した時の処理】---
   void startTimer() {
     // ① 作動中で一時停止していない場合 ➔ 「一時停止」にする
@@ -107,6 +120,7 @@ class _TimerHomePageState extends State<TimerHomePage> {
       isRunning = true; // 作動中フラグをON
       isPaused = false; // 一時停止フラグをOFF
     });
+    resetPickerTime();  //スタートした時点でドラムロールをリセット
 
     runCountdown(); // カウントダウン開始
   }
@@ -127,6 +141,7 @@ class _TimerHomePageState extends State<TimerHomePage> {
           isRunning = false;
           isPaused = false;
         });
+        resetPickerTime();  // タイマー終了時にドラムロールをリセット
         await triggerAlarmEffect(); // 点滅と振動のアラームを実行
       }
     });
@@ -140,6 +155,7 @@ class _TimerHomePageState extends State<TimerHomePage> {
       isPaused = false;
       remainingTime = 0; // 残り時間をリセット
     });
+    resetPickerTime();  // キャンセル時にドラムロールをリセット
   }
 
 // ---【ロジック 4：タイマー終了時のアラーム演出（点滅・強力バイブ・手動停止まで無限ループ）】---
