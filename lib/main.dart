@@ -5,11 +5,15 @@ import 'dart:async'; // タイマー機能（Timer.periodic）を使うための
 import 'package:flutter/cupertino.dart'; // iOS風デザイン（CupertinoPickerドラムロール）用
 import 'package:flutter/material.dart'; // Flutter標準のデザインパーツ（ボタン、テキスト、テーマ色など）用
 import 'package:flutter/services.dart'; // スマホのハードウェア制御（バイブレーション HapticFeedback）用
+import 'notification_service.dart'; // ★追加：先ほど作成した通知マネージャーを取り込む
 
 // ------------------------------------------------------------
 // 2. アプリのスタート地点（メイン関数）
 // ------------------------------------------------------------
-void main() {
+void main() async { // ★変更：async を追加
+  WidgetsFlutterBinding.ensureInitialized(); // ★追加：Flutterの基本機能を初期化
+  await NotificationService().init(); // ★追加：通知機能の初期設定・許可リクエストを実行
+
   // アプリを起動し、最初に MyApp クラス（全体設定）を立ち上げる
   runApp(const SilentTimerApp());
 }
@@ -48,7 +52,8 @@ class TimerHomePage extends StatefulWidget {
 // ------------------------------------------------------------
 // 5. メイン画面の実体（変数・ロジック・UIのすべてがここに入る）
 // ------------------------------------------------------------
-class _TimerHomePageState extends State<TimerHomePage> {
+// ★変更：with WidgetsBindingObserver を追加（アプリが閉じられた・開かれたことを検知するため）
+class _TimerHomePageState extends State<TimerHomePage> with WidgetsBindingObserver {
   // ---【変数宣言：ドラムロールで選んだ時間を保持する変数】---
   int selectedHour = 0; // 選択された「時間」
   int selectedMin = 0; // 選択された「分」
@@ -59,6 +64,7 @@ class _TimerHomePageState extends State<TimerHomePage> {
   bool isPaused = false; // 一時停止中かどうか（true: 一時停止中, false: カウントダウン中）
   int remainingTime = 0; // カウントダウンの残り時間（秒単位）
   Timer? timer; // 1秒ごとに処理を繰り返すためのタイマーオブジェクト（nullの可能性あり）
+  DateTime? targetEndTime; // ★追加：タイマーが終了する予定の正確な日時
 
   // ---【変数宣言：設定スイッチと画面色の状態】---
   bool flashSwitch = true; // 画面点滅機能のON/OFF
@@ -73,10 +79,45 @@ class _TimerHomePageState extends State<TimerHomePage> {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this); // ★追加：アプリの開閉状態の監視を開始
     // 画面が最初に読み込まれた時に、ドラムロールの初期位置をすべて「0」に設定する
     hourController = FixedExtentScrollController(initialItem: 0);
     minController = FixedExtentScrollController(initialItem: 0);
     secController = FixedExtentScrollController(initialItem: 0);
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this); // ★追加：監視の解除
+    hourController.dispose();
+    minController.dispose();
+    secController.dispose();
+    timer?.cancel();
+    super.dispose();
+  }
+
+  // ★追加：アプリがバックグラウンドから復帰した時に時間を同期する処理
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    if (state == AppLifecycleState.resumed && isRunning && !isPaused && targetEndTime != null) {
+      final difference = targetEndTime!.difference(DateTime.now()).inSeconds;
+      if (difference > 0) {
+        // まだタイマーが残っている場合：残り秒数を正確に合わせる
+        setState(() {
+          remainingTime = difference;
+        });
+      } else {
+        // バックグラウンド中に時間がゼロになっていた場合：タイマーを終了してアラームへ
+        timer?.cancel();
+        setState(() {
+          remainingTime = 0;
+          isRunning = false;
+          isPaused = false;
+        });
+        resetPickerTime();
+        triggerAlarmEffect();
+      }
+    }
   }
 
   void resetPickerTime() {
@@ -99,6 +140,7 @@ class _TimerHomePageState extends State<TimerHomePage> {
         isPaused = true;
       });
       timer?.cancel(); // カウントダウンを一時ストップ
+      NotificationService().cancelNotification(); // ★追加：一時停止時は通知予約を一旦解除
       return;
     }
 
@@ -107,6 +149,10 @@ class _TimerHomePageState extends State<TimerHomePage> {
       setState(() {
         isPaused = false;
       });
+      // ★追加：再開した時点から改めて終了予定時刻と通知を再設定
+      targetEndTime = DateTime.now().add(Duration(seconds: remainingTime));
+      NotificationService().scheduleContinuousNotifications(seconds: remainingTime);
+
       runCountdown(); // カウントダウン処理を再開
       return;
     }
@@ -120,7 +166,11 @@ class _TimerHomePageState extends State<TimerHomePage> {
       isRunning = true; // 作動中フラグをON
       isPaused = false; // 一時停止フラグをOFF
     });
-    resetPickerTime();  //スタートした時点でドラムロールをリセット
+    resetPickerTime(); // スタートした時点でドラムロールをリセット
+
+    // ★追加：タイマー終了予定時刻を計算し、iOSシステムに通知を予約
+    targetEndTime = DateTime.now().add(Duration(seconds: totalSec));
+    NotificationService().scheduleContinuousNotifications(seconds: totalSec);
 
     runCountdown(); // カウントダウン開始
   }
@@ -137,11 +187,12 @@ class _TimerHomePageState extends State<TimerHomePage> {
       } else {
         // 残り時間が0になった場合：タイマーを停止してアラーム演出を実行
         t.cancel();
+        NotificationService().cancelNotification(); // ★追加：通知をクリア
         setState(() {
           isRunning = false;
           isPaused = false;
         });
-        resetPickerTime();  // タイマー終了時にドラムロールをリセット
+        resetPickerTime(); // タイマー終了時にドラムロールをリセット
         await triggerAlarmEffect(); // 点滅と振動のアラームを実行
       }
     });
@@ -150,15 +201,17 @@ class _TimerHomePageState extends State<TimerHomePage> {
   // ---【ロジック 3：キャンセルボタンを押した時の処理】---
   void cancelTimer() {
     timer?.cancel(); // タイマーの定期実行をストップ
+    NotificationService().cancelNotification(); // ★追加：予約中の通知を破棄
+    targetEndTime = null; // ★追加：終了時刻をクリア
     setState(() {
       isRunning = false;
       isPaused = false;
       remainingTime = 0; // 残り時間をリセット
     });
-    resetPickerTime();  // キャンセル時にドラムロールをリセット
+    resetPickerTime(); // キャンセル時にドラムロールをリセット
   }
 
-// ---【ロジック 4：タイマー終了時のアラーム演出（点滅・強力バイブ・手動停止まで無限ループ）】---
+  // ---【ロジック 4：タイマー終了時のアラーム演出（点滅・強力バイブ・手動停止まで無限ループ）】---
   Future<void> triggerAlarmEffect() async {
     bool isAlarming = true; // アラーム停止管理フラグ
 
@@ -190,9 +243,8 @@ class _TimerHomePageState extends State<TimerHomePage> {
       }
 
       if (vibeSwitch) {
-        // バイブ強化：短時間（100ms間隔）で2回連続衝撃を与えて振動感を強める
+        // バイブ強化：短時間で振動感を強める
         HapticFeedback.vibrate();
-        
       }
 
       await Future.delayed(const Duration(milliseconds: 250));
@@ -365,6 +417,16 @@ class _TimerHomePageState extends State<TimerHomePage> {
               ],
             ),
 
+            // 講義テンプレートボタン（15分 / 30分）
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                OutlinedButton(onPressed: () => setTemplateTime(0, 15, 0), child: const Text("休憩\n15:00", textAlign: TextAlign.center)),
+                const SizedBox(width: 10),
+                OutlinedButton(onPressed: () => setTemplateTime(0, 30, 0), child: const Text("集中\n30:00", textAlign: TextAlign.center)),
+              ],
+            ),
+
             const Divider(height: 30),
 
             // ---【設定スイッチセクション（画面点滅 / バイブ）】---
@@ -382,17 +444,6 @@ class _TimerHomePageState extends State<TimerHomePage> {
           ],
         ),
       ),
-
-      // ---【画面下部のナビゲーションバー（セット / 一覧）】---
-      // まだ「一覧」画面は作っていないので、ナビゲーションバーは表示だけしておく
-      //bottomNavigationBar: NavigationBar(
-        //destinations: const [
-          //NavigationDestination(icon: Icon(Icons.timer), label: "セット"),
-          //NavigationDestination(icon: Icon(Icons.format_list_bulleted), label: "一覧"),
-        //],
-        //electedIndex: 0,
-      //),
-      //
     );
   }
 }
